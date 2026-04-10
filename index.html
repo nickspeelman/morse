@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Morse Code Challenge</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="topbar">
+    <div class="topbar-left">
+      <div>
+        <h1>Morse Code Challenge</h1>
+        <div class="meta">
+          10 independent Morse interpreters running in parallel
+        </div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button id="globalResetBtn">Reset All Teams</button>
+    </div>
+  </div>
+
+  <div class="topbar">
+    <div class="topbar-left">
+      <div>
+        <strong>Target Phrase:</strong>
+        <span id="targetPhraseDisplay" class="mono"></span>
+      </div>
+    </div>
+    <div class="topbar-right meta" id="timingSummary"></div>
+  </div>
+
+  <div id="teamsContainer" class="teams"></div>
+
+  <div class="footer-note">
+    Letters resolve after a letter gap. Spaces resolve after a word gap.
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
