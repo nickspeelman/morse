@@ -9,8 +9,8 @@ const APP_CONFIG = {
     minPressDurationMs: 30,  // debounce
     dotMaxMs: 240,           // <= this is a dot
     dashMaxMs: 600,          // > dotMaxMs and <= dashMaxMs is a dash
-    letterGapMs: 450,        // silence >= this finalizes a current Morse letter
-    wordGapMs: 900,          // silence >= this finalizes a space
+    letterGapMs: 600,        // silence >= this finalizes a current Morse letter
+    wordGapMs: 1200,          // silence >= this finalizes a space
     errorFlashMs: 800
   },
   teams: [
