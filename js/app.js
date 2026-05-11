@@ -4,14 +4,14 @@
  * come from an admin panel or backend settings.
  ********************************************************************/
 const APP_CONFIG = {
-  targetPhrase: "HELLO WORLD",
+  targetPhrase: "HELLO",
   timing: {
-    minPressDurationMs: 30,  // debounce
-    dotMaxMs: 240,           // <= this is a dot
-    dashMaxMs: 600,          // > dotMaxMs and <= dashMaxMs is a dash
-    letterGapMs: 600,        // silence >= this finalizes a current Morse letter
-    wordGapMs: 1200,          // silence >= this finalizes a space
-    errorFlashMs: 800
+    minPressDurationMs: 30,
+    dotMaxMs: 240,
+    dashMaxMs: 900,
+    letterGapMs: 700,
+    wordGapMs: 1400,
+    errorFlashMs: 2500
   },
   teams: [
     { id: "A", key: "a", gamepadButton: 0, label: "Team A", active: true },
@@ -26,6 +26,14 @@ const APP_CONFIG = {
     { id: "H", key: "h", gamepadButton: 9, label: "Team H", active: true }
   ]
 };
+
+const APP_START_TIME = performance.now();
+
+function getSyncedAnimationStyle(durationMs) {
+  const elapsed = performance.now() - APP_START_TIME;
+  const offset = -(elapsed % durationMs);
+  return `style="--sync-delay: ${offset}ms;"`;
+}
 
 /********************************************************************
  * MORSE TABLES
@@ -87,12 +95,14 @@ function createInitialTeamState(teamConfig) {
 
     currentSymbolBuffer: "",
     decodedText: "",
+    lastDecodedDisplay: "",
     currentTargetIndex: 0,
 
     status: "idle", // idle | active | error | complete
     errorMessage: "",
 
     lastInterpretedSymbol: "",
+    livePressSymbol: "",
     pendingGapHandled: false
   };
 }
@@ -111,7 +121,7 @@ const teamMapByKey = new Map(
 const teamsContainer = document.getElementById("teamsContainer");
 const targetPhraseDisplay = document.getElementById("targetPhraseDisplay");
 const timingSummary = document.getElementById("timingSummary");
-const globalResetBtn = document.getElementById("globalResetBtn");
+// const globalResetBtn = document.getElementById("globalResetBtn");
 
 /********************************************************************
  * RENDERING
@@ -120,18 +130,24 @@ function renderApp() {
   targetPhraseDisplay.textContent = APP_CONFIG.targetPhrase;
   timingSummary.textContent =
     `dot≤${APP_CONFIG.timing.dotMaxMs}ms | dash≤${APP_CONFIG.timing.dashMaxMs}ms | ` +
-    `letter gap≥${APP_CONFIG.timing.letterGapMs}ms | word gap≥${APP_CONFIG.timing.wordGapMs}ms`;
+    `letter gap≥${APP_CONFIG.timing.letterGapMs}ms | word gap≥${APP_CONFIG.timing.wordGapMs}`;
 
   teamsContainer.innerHTML = teams.map(renderTeamCard).join("");
+  window.requestAnimationFrame(() => fitAllOneLineText(teamsContainer));
+}
 
-  teams.forEach(team => {
-    const btn = document.getElementById(`reset-${team.id}`);
-    if (btn) {
-      btn.addEventListener("click", () => {
-        resetTeam(team);
-      });
-    }
-  });
+function renderSingleTeam(team) {
+  const existingCard = document.getElementById(`team-card-${team.id}`);
+
+  if (!existingCard) {
+    teamsContainer.insertAdjacentHTML("beforeend", renderTeamCard(team));
+    return;
+  }
+
+  existingCard.outerHTML = renderTeamCard(team);
+
+  const newCard = document.getElementById(`team-card-${team.id}`);
+  window.requestAnimationFrame(() => fitAllOneLineText(newCard));
 }
 
 function renderTeamCard(team) {
@@ -144,45 +160,69 @@ function renderTeamCard(team) {
 
   const statusClass = `status-${team.status}`;
   const orbClass = team.isPressed ? "signal-orb pressed" : "signal-orb";
+  const orbSymbol =
+    team.livePressSymbol ||
+    (
+      team.lastInterpretedSymbol === "." ||
+      team.lastInterpretedSymbol === "-"
+    ? team.lastInterpretedSymbol
+    : "");
   const comparisonHtml = buildComparisonHtml(team);
 
-  return `
-    <div class="${cardClasses}">
-      <div class="team-header">
-        <div>
-          <div class="team-title">
-            ${escapeHtml(team.label)} <span class="kbd">${escapeHtml(team.key.toUpperCase())}</span>
-          </div>
-        </div>
-        <div class="topbar-right">
-          <span class="status-pill ${statusClass}">${escapeHtml(team.status)}</span>
-          <button id="reset-${team.id}">Reset</button>
-        </div>
-      </div>
+  const decodedClass =
+  team.lastDecodedDisplay === "⊗"
+    ? "mono decoded decoded-error"
+    : "mono decoded";
 
+  const errorSizeClass = "";
+
+  const cardBodyHtml = team.status === "complete"
+    ? `
+      <div class="success-wrap" aria-label="Code successfully transmitted">
+        <div class="success-check" ${getSyncedAnimationStyle(1600)}>✓</div>
+      </div>
+    `
+    : `
       <div class="signal-wrap">
-        <div class="${orbClass}" aria-hidden="true"></div>
+        <div class="${orbClass}" aria-hidden="true">
+          <span class="orb-symbol">${escapeHtml(orbSymbol)}</span>
+        </div>
       </div>
 
       <div class="field-grid">
-        <div class="field-label">Buffer</div>
-        <div class="mono buffer">${escapeHtml(team.currentSymbolBuffer || "—")}</div>
+        <div class="readout-box">
+          <div class="readout-label">Buffer</div>
+          <div class="mono buffer fit-one-line ${team.currentSymbolBuffer ? "" : "ghost-ellipsis"}" data-fit-min="10" data-fit-max="42" ${team.currentSymbolBuffer ? "" : getSyncedAnimationStyle(1100)}>
+            ${team.currentSymbolBuffer ? escapeHtml(team.currentSymbolBuffer) : "<span></span><span></span><span></span>"}
+          </div>
+        </div>
 
-        <div class="field-label">Decoded</div>
-        <div class="mono">${escapeHtml(team.decodedText || "—")}</div>
-
-        <div class="field-label">Last</div>
-        <div class="mono">${escapeHtml(team.lastInterpretedSymbol || "—")}</div>
-
-        <div class="field-label">Progress</div>
-        <div>${team.currentTargetIndex} / ${APP_CONFIG.targetPhrase.length}</div>
+        <div class="readout-box">
+          <div class="readout-label">Last decoded</div>
+          <div class="${decodedClass} fit-one-line ${team.lastDecodedDisplay ? "" : "ghost-ellipsis"}" data-fit-min="8" data-fit-max="36" ${team.lastDecodedDisplay ? "" : getSyncedAnimationStyle(1100)}>
+            ${team.lastDecodedDisplay ? escapeHtml(team.lastDecodedDisplay) : "<span></span><span></span><span></span>"}
+          </div>
+        </div>
       </div>
 
       <div class="target-row">
         <div class="field-label">Target progress</div>
-        <div class="comparison">${comparisonHtml}</div>
-        <div class="error-text">${escapeHtml(team.errorMessage)}</div>
+        <div class="comparison fit-one-line" data-fit-min="10" data-fit-max="28">${comparisonHtml}</div>
+        <div class="error-text fit-one-line" data-fit-min="8" data-fit-max="22">${escapeHtml(team.errorMessage)}</div>
       </div>
+    `;
+
+  return `
+    <div id="team-card-${escapeHtml(team.id)}" class="${cardClasses}">
+      <div class="team-header">
+        <div>
+          <div class="team-title">
+            ${escapeHtml(team.label)} 
+          </div>
+        </div>
+      </div>
+
+      ${cardBodyHtml}
     </div>
   `;
 }
@@ -200,7 +240,7 @@ function buildComparisonHtml(team) {
     // Already completed
     if (i < logicalIndex) {
       if (char === " ") {
-        html += `<span class="done space-done">·</span>`;
+        html += `<span class="done">&nbsp;</span>`;
       } else {
         html += `<span class="done">${escapeHtml(char)}</span>`;
       }
@@ -210,7 +250,7 @@ function buildComparisonHtml(team) {
     // Current actual logical cursor
     if (i === logicalIndex) {
       if (char === " ") {
-        html += `<span class="next space-pending">·</span>`;
+        html += `<span class="next">&nbsp;</span>`;
       } else {
         html += `<span class="next">${escapeHtml(char)}</span>`;
       }
@@ -219,7 +259,7 @@ function buildComparisonHtml(team) {
 
     // Remaining characters
     if (char === " ") {
-      html += `<span class="remaining space-remaining">·</span>`;
+      html += `<span class="remaining">&nbsp;</span>`;
     } else {
       html += `<span class="remaining">${escapeHtml(char)}</span>`;
     }
@@ -237,6 +277,33 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function fitOneLineText(el) {
+  const minSize = Number(el.dataset.fitMin || 8);
+  const maxSize = Number(el.dataset.fitMax || 32);
+
+  el.style.fontSize = `${maxSize}px`;
+  el.style.whiteSpace = "nowrap";
+  el.style.overflow = "hidden";
+  el.style.textOverflow = "clip";
+
+  let size = maxSize;
+
+  while (
+    size > minSize &&
+    (
+      el.scrollWidth > el.clientWidth ||
+      el.scrollHeight > el.clientHeight
+    )
+  ) {
+    size -= 1;
+    el.style.fontSize = `${size}px`;
+  }
+}
+
+function fitAllOneLineText(root = document) {
+  root.querySelectorAll(".fit-one-line").forEach(fitOneLineText);
+}
+
 /********************************************************************
  * RESET LOGIC
  ********************************************************************/
@@ -246,12 +313,13 @@ function resetTeam(team) {
   team.lastReleaseTime = null;
   team.currentSymbolBuffer = "";
   team.decodedText = "";
+  team.lastDecodedDisplay = "";
   team.currentTargetIndex = 0;
   team.status = "idle";
   team.errorMessage = "";
   team.lastInterpretedSymbol = "";
   team.pendingGapHandled = false;
-  renderApp();
+  renderSingleTeam(team);
 }
 
 function resetAllTeams() {
@@ -311,6 +379,7 @@ function finalizeLetter(team) {
   const decodedLetter = MORSE_MAP[morse];
 
   if (!decodedLetter) {
+    team.lastDecodedDisplay = "⊗";
     triggerTeamError(team, `Invalid Morse sequence: ${morse}`);
     return;
   }
@@ -318,6 +387,7 @@ function finalizeLetter(team) {
   const expectedChar = APP_CONFIG.targetPhrase[team.currentTargetIndex];
 
   if (decodedLetter !== expectedChar) {
+    team.lastDecodedDisplay = decodedLetter;
     triggerTeamError(
       team,
       `Expected "${expectedChar}" but received "${decodedLetter}"`
@@ -326,6 +396,7 @@ function finalizeLetter(team) {
   }
 
   team.decodedText += decodedLetter;
+  team.lastDecodedDisplay = decodedLetter;
   team.currentTargetIndex += 1;
   team.currentSymbolBuffer = "";
   team.lastInterpretedSymbol = decodedLetter;
@@ -357,12 +428,13 @@ function finalizeSpace(team) {
   if (expectedChar !== " ") {
     triggerTeamError(
       team,
-      `Expected "${expectedChar}" but received [space]`
+      `Expected "${expectedChar}" but received " "`
     );
     return;
   }
 
   team.decodedText += " ";
+  team.lastDecodedDisplay = "␣";
   team.currentTargetIndex += 1;
   team.lastInterpretedSymbol = "[space]";
   team.pendingGapHandled = true;
@@ -384,7 +456,7 @@ function finalizeSpace(team) {
 function triggerTeamError(team, message) {
   team.status = "error";
   team.errorMessage = message;
-  renderApp();
+  renderSingleTeam(team);
 
   window.setTimeout(() => {
     resetTeam(team);
@@ -449,13 +521,14 @@ function startTeamPress(team) {
 
   team.isPressed = true;
   team.pressStartTime = performance.now();
+  team.livePressSymbol = ".";
   team.errorMessage = "";
 
   if (team.status !== "error" && team.status !== "complete") {
     team.status = "active";
   }
 
-  renderApp();
+  renderSingleTeam(team);
 }
 
 function endTeamPress(team) {
@@ -470,8 +543,9 @@ function endTeamPress(team) {
   team.pressStartTime = null;
   team.lastReleaseTime = now;
 
+  team.livePressSymbol = "";
   handlePressEnd(team, pressDurationMs);
-  renderApp();
+  renderSingleTeam(team);
 }
 
 function handleKeyDown(event) {
@@ -544,24 +618,57 @@ function pollGamepads() {
  * A light polling loop watches for letter gaps and word gaps across all
  * teams in parallel.
  ********************************************************************/
+function updateLivePressSymbol(team, now) {
+  if (!team.isPressed || team.pressStartTime === null) {
+    return;
+  }
+
+  const heldMs = now - team.pressStartTime;
+
+  if (heldMs > APP_CONFIG.timing.dotMaxMs) {
+    team.livePressSymbol = "-";
+  } else {
+    team.livePressSymbol = ".";
+  }
+}
+
+
 function tick() {
   const now = performance.now();
 
   pollGamepads();
 
   teams.forEach(team => {
+    const beforeSymbol = team.livePressSymbol;
+    const beforeStatus = team.status;
+    const beforeTargetIndex = team.currentTargetIndex;
+    const beforeBuffer = team.currentSymbolBuffer;
+    const beforeError = team.errorMessage;
+    const beforePressed = team.isPressed;
+
+    updateLivePressSymbol(team, now);
     processTeamGap(team, now);
+
+    const teamChanged =
+      team.livePressSymbol !== beforeSymbol ||
+      team.status !== beforeStatus ||
+      team.currentTargetIndex !== beforeTargetIndex ||
+      team.currentSymbolBuffer !== beforeBuffer ||
+      team.errorMessage !== beforeError ||
+      team.isPressed !== beforePressed;
+
+    if (teamChanged) {
+      renderSingleTeam(team);
+    }
   });
 
-  renderApp();
   window.requestAnimationFrame(tick);
 }
-
 /********************************************************************
  * INIT
  ********************************************************************/
 function init() {
-  globalResetBtn.addEventListener("click", resetAllTeams);
+  // globalResetBtn.addEventListener("click", resetAllTeams);
   window.addEventListener("keydown", handleKeyDown);
   window.addEventListener("keyup", handleKeyUp);
 
