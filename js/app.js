@@ -14,16 +14,16 @@ const APP_CONFIG = {
     errorFlashMs: 800
   },
   teams: [
-    { id: "A", key: "a", label: "Team A", active: true },
-    { id: "S", key: "s", label: "Team S", active: true },
-    { id: "D", key: "d", label: "Team D", active: true },
-    { id: "F", key: "f", label: "Team F", active: true },
-    { id: "J", key: "j", label: "Team J", active: true },
-    { id: "K", key: "k", label: "Team K", active: true },
-    { id: "L", key: "l", label: "Team L", active: true },
-    { id: "SEMICOLON", key: ";", label: "Team ;", active: true },
-    { id: "G", key: "g", label: "Team G", active: true },
-    { id: "H", key: "h", label: "Team H", active: true }
+    { id: "A", key: "a", gamepadButton: 0, label: "Team A", active: true },
+    { id: "S", key: "s", gamepadButton: 1, label: "Team S", active: true },
+    { id: "D", key: "d", gamepadButton: 2, label: "Team D", active: true },
+    { id: "F", key: "f", gamepadButton: 3, label: "Team F", active: true },
+    { id: "J", key: "j", gamepadButton: 4, label: "Team J", active: true },
+    { id: "K", key: "k", gamepadButton: 5, label: "Team K", active: true },
+    { id: "L", key: "l", gamepadButton: 6, label: "Team L", active: true },
+    { id: "SEMICOLON", key: ";", gamepadButton: 7, label: "Team ;", active: true },
+    { id: "G", key: "g", gamepadButton: 8, label: "Team G", active: true },
+    { id: "H", key: "h", gamepadButton: 9, label: "Team H", active: true }
   ]
 };
 
@@ -77,6 +77,7 @@ function createInitialTeamState(teamConfig) {
   return {
     id: teamConfig.id,
     key: teamConfig.key,
+    gamepadButton: teamConfig.gamepadButton,
     label: teamConfig.label,
     active: teamConfig.active,
 
@@ -435,18 +436,9 @@ function processTeamGap(team, now) {
  * Each assigned key controls exactly one team. Repeated keydown events
  * are ignored so holding a key does not generate multiple presses.
  ********************************************************************/
-function handleKeyDown(event) {
-  const key = event.key.toLowerCase();
-  const team = teamMapByKey.get(key);
+const previousGamepadButtonStates = new Map();
 
-  if (!team) {
-    return;
-  }
-
-  if (event.repeat) {
-    return;
-  }
-
+function startTeamPress(team) {
   if (team.status === "complete") {
     return;
   }
@@ -466,14 +458,7 @@ function handleKeyDown(event) {
   renderApp();
 }
 
-function handleKeyUp(event) {
-  const key = event.key.toLowerCase();
-  const team = teamMapByKey.get(key);
-
-  if (!team) {
-    return;
-  }
-
+function endTeamPress(team) {
   if (!team.isPressed || team.pressStartTime === null) {
     return;
   }
@@ -489,6 +474,70 @@ function handleKeyUp(event) {
   renderApp();
 }
 
+function handleKeyDown(event) {
+  const key = event.key.toLowerCase();
+  const team = teamMapByKey.get(key);
+
+  if (!team) {
+    return;
+  }
+
+  if (event.repeat) {
+    return;
+  }
+
+  startTeamPress(team);
+}
+
+function handleKeyUp(event) {
+  const key = event.key.toLowerCase();
+  const team = teamMapByKey.get(key);
+
+  if (!team) {
+    return;
+  }
+
+  endTeamPress(team);
+}
+
+function pollGamepads() {
+  if (!navigator.getGamepads) {
+    return;
+  }
+
+  const gamepads = navigator.getGamepads();
+  const gamepad = Array.from(gamepads).find(Boolean);
+
+  if (!gamepad) {
+    return;
+  }
+
+  teams.forEach(team => {
+    if (team.gamepadButton === undefined || team.gamepadButton === null) {
+      return;
+    }
+
+    const button = gamepad.buttons[team.gamepadButton];
+
+    if (!button) {
+      return;
+    }
+
+    const isPressedNow = button.pressed;
+    const wasPressedBefore = previousGamepadButtonStates.get(team.id) || false;
+
+    if (isPressedNow && !wasPressedBefore) {
+      startTeamPress(team);
+    }
+
+    if (!isPressedNow && wasPressedBefore) {
+      endTeamPress(team);
+    }
+
+    previousGamepadButtonStates.set(team.id, isPressedNow);
+  });
+}
+
 /********************************************************************
  * MAIN LOOP
  *
@@ -497,6 +546,8 @@ function handleKeyUp(event) {
  ********************************************************************/
 function tick() {
   const now = performance.now();
+
+  pollGamepads();
 
   teams.forEach(team => {
     processTeamGap(team, now);
