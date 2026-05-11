@@ -4,7 +4,7 @@
  * come from an admin panel or backend settings.
  ********************************************************************/
 const APP_CONFIG = {
-  targetPhrase: "HELLO WORLD",
+  targetPhrase: "HELLO",
   timing: {
     minPressDurationMs: 30,
     dotMaxMs: 240,
@@ -26,6 +26,14 @@ const APP_CONFIG = {
     { id: "H", key: "h", label: "Team H", active: true }
   ]
 };
+
+const APP_START_TIME = performance.now();
+
+function getSyncedAnimationStyle(durationMs) {
+  const elapsed = performance.now() - APP_START_TIME;
+  const offset = -(elapsed % durationMs);
+  return `style="--sync-delay: ${offset}ms;"`;
+}
 
 /********************************************************************
  * MORSE TABLES
@@ -121,19 +129,25 @@ function renderApp() {
   targetPhraseDisplay.textContent = APP_CONFIG.targetPhrase;
   timingSummary.textContent =
     `dot≤${APP_CONFIG.timing.dotMaxMs}ms | dash≤${APP_CONFIG.timing.dashMaxMs}ms | ` +
-    `letter gap≥${APP_CONFIG.timing.letterGapMs}ms | word gap≥${APP_CONFIG.timing.wordGapMs}ms`;
+    `letter gap≥${APP_CONFIG.timing.letterGapMs}ms | word gap≥${APP_CONFIG.timing.wordGapMs}`;
 
   teamsContainer.innerHTML = teams.map(renderTeamCard).join("");
+  window.requestAnimationFrame(() => fitAllOneLineText(teamsContainer));
+}
 
-  /* teams.forEach(team => {
-     const btn = document.getElementById(`reset-${team.id}`);
-    if (btn) {
-      btn.addEventListener("click", () => {
-        resetTeam(team);
-      });
-    }
-  }); */ 
-} 
+function renderSingleTeam(team) {
+  const existingCard = document.getElementById(`team-card-${team.id}`);
+
+  if (!existingCard) {
+    teamsContainer.insertAdjacentHTML("beforeend", renderTeamCard(team));
+    return;
+  }
+
+  existingCard.outerHTML = renderTeamCard(team);
+
+  const newCard = document.getElementById(`team-card-${team.id}`);
+  window.requestAnimationFrame(() => fitAllOneLineText(newCard));
+}
 
 function renderTeamCard(team) {
   const cardClasses = [
@@ -159,26 +173,15 @@ function renderTeamCard(team) {
     ? "mono decoded decoded-error"
     : "mono decoded";
 
-  let errorSizeClass = "";
+  const errorSizeClass = "";
 
-  if (team.errorMessage.length > 36) {
-    errorSizeClass = "error-small";
-  } else if (team.errorMessage.length > 24) {
-    errorSizeClass = "error-medium";
-  } else {
-    errorSizeClass = "error-large";
-  }
-
-  return `
-    <div class="${cardClasses}">
-      <div class="team-header">
-        <div>
-          <div class="team-title">
-            ${escapeHtml(team.label)} 
-          </div>
-        </div>
+  const cardBodyHtml = team.status === "complete"
+    ? `
+      <div class="success-wrap" aria-label="Code successfully transmitted">
+        <div class="success-check" ${getSyncedAnimationStyle(1600)}>✓</div>
       </div>
-
+    `
+    : `
       <div class="signal-wrap">
         <div class="${orbClass}" aria-hidden="true">
           <span class="orb-symbol">${escapeHtml(orbSymbol)}</span>
@@ -188,22 +191,37 @@ function renderTeamCard(team) {
       <div class="field-grid">
         <div class="readout-box">
           <div class="readout-label">Buffer</div>
-          <div class="mono buffer">${escapeHtml(team.currentSymbolBuffer || "—")}</div>
+          <div class="mono buffer fit-one-line ${team.currentSymbolBuffer ? "" : "ghost-ellipsis"}" data-fit-min="10" data-fit-max="42" ${team.currentSymbolBuffer ? "" : getSyncedAnimationStyle(1100)}>
+            ${team.currentSymbolBuffer ? escapeHtml(team.currentSymbolBuffer) : "<span></span><span></span><span></span>"}
+          </div>
         </div>
 
         <div class="readout-box">
           <div class="readout-label">Last decoded</div>
-          <div class="${decodedClass}">
-            ${escapeHtml(team.lastDecodedDisplay || "—")}
+          <div class="${decodedClass} fit-one-line ${team.lastDecodedDisplay ? "" : "ghost-ellipsis"}" data-fit-min="8" data-fit-max="36" ${team.lastDecodedDisplay ? "" : getSyncedAnimationStyle(1100)}>
+            ${team.lastDecodedDisplay ? escapeHtml(team.lastDecodedDisplay) : "<span></span><span></span><span></span>"}
           </div>
         </div>
       </div>
 
       <div class="target-row">
         <div class="field-label">Target progress</div>
-        <div class="comparison">${comparisonHtml}</div>
-        <div class="error-text ${errorSizeClass}">${escapeHtml(team.errorMessage)}</div>
+        <div class="comparison fit-one-line" data-fit-min="10" data-fit-max="28">${comparisonHtml}</div>
+        <div class="error-text fit-one-line" data-fit-min="8" data-fit-max="22">${escapeHtml(team.errorMessage)}</div>
       </div>
+    `;
+
+  return `
+    <div id="team-card-${escapeHtml(team.id)}" class="${cardClasses}">
+      <div class="team-header">
+        <div>
+          <div class="team-title">
+            ${escapeHtml(team.label)} 
+          </div>
+        </div>
+      </div>
+
+      ${cardBodyHtml}
     </div>
   `;
 }
@@ -258,6 +276,33 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function fitOneLineText(el) {
+  const minSize = Number(el.dataset.fitMin || 8);
+  const maxSize = Number(el.dataset.fitMax || 32);
+
+  el.style.fontSize = `${maxSize}px`;
+  el.style.whiteSpace = "nowrap";
+  el.style.overflow = "hidden";
+  el.style.textOverflow = "clip";
+
+  let size = maxSize;
+
+  while (
+    size > minSize &&
+    (
+      el.scrollWidth > el.clientWidth ||
+      el.scrollHeight > el.clientHeight
+    )
+  ) {
+    size -= 1;
+    el.style.fontSize = `${size}px`;
+  }
+}
+
+function fitAllOneLineText(root = document) {
+  root.querySelectorAll(".fit-one-line").forEach(fitOneLineText);
+}
+
 /********************************************************************
  * RESET LOGIC
  ********************************************************************/
@@ -273,7 +318,7 @@ function resetTeam(team) {
   team.errorMessage = "";
   team.lastInterpretedSymbol = "";
   team.pendingGapHandled = false;
-  renderApp();
+  renderSingleTeam(team);
 }
 
 function resetAllTeams() {
@@ -410,7 +455,7 @@ function finalizeSpace(team) {
 function triggerTeamError(team, message) {
   team.status = "error";
   team.errorMessage = message;
-  renderApp();
+  renderSingleTeam(team);
 
   window.setTimeout(() => {
     resetTeam(team);
@@ -491,7 +536,7 @@ function handleKeyDown(event) {
     team.status = "active";
   }
 
-  renderApp();
+  renderSingleTeam(team);
 }
 
 function handleKeyUp(event) {
@@ -515,7 +560,7 @@ function handleKeyUp(event) {
 
   team.livePressSymbol = "";
   handlePressEnd(team, pressDurationMs);
-  renderApp();
+  renderSingleTeam(team);
 }
 
 /********************************************************************
@@ -543,14 +588,31 @@ function tick() {
   const now = performance.now();
 
   teams.forEach(team => {
+    const beforeSymbol = team.livePressSymbol;
+    const beforeStatus = team.status;
+    const beforeTargetIndex = team.currentTargetIndex;
+    const beforeBuffer = team.currentSymbolBuffer;
+    const beforeError = team.errorMessage;
+    const beforePressed = team.isPressed;
+
     updateLivePressSymbol(team, now);
     processTeamGap(team, now);
+
+    const teamChanged =
+      team.livePressSymbol !== beforeSymbol ||
+      team.status !== beforeStatus ||
+      team.currentTargetIndex !== beforeTargetIndex ||
+      team.currentSymbolBuffer !== beforeBuffer ||
+      team.errorMessage !== beforeError ||
+      team.isPressed !== beforePressed;
+
+    if (teamChanged) {
+      renderSingleTeam(team);
+    }
   });
 
-  renderApp();
   window.requestAnimationFrame(tick);
 }
-
 /********************************************************************
  * INIT
  ********************************************************************/

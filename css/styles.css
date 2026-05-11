@@ -106,22 +106,28 @@ button:active {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(160px, 1fr));
   grid-template-rows: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: clamp(8px, 0.8vw, 12px);
   align-items: stretch;
 }
 
 .team-card {
   background: var(--panel);
   border: 2px solid var(--deep-blue);
-  border-radius: 16px;
-  padding: 18px;
+  border-radius: 14px;
+  padding: clamp(8px, 0.8vw, 14px);
   min-height: 0;
   height: 100%;
 
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows:
+    auto
+    minmax(44px, 1fr)
+    auto
+    auto;
+
+  overflow: hidden;
 
   box-shadow: 0 5px 16px rgba(31, 78, 140, 0.08);
   transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
@@ -156,13 +162,14 @@ button:active {
 }
 
 .team-title {
-  font-size: 32px;
+  font-size: clamp(22px, 2vw, 32px);
   font-weight: 900;
   color: var(--deep-blue);
   line-height: 1;
   text-align: center;
   width: 100%;
 }
+
 
 .kbd {
   display: inline-block;
@@ -212,13 +219,13 @@ button:active {
   display: flex;
   align-items: center;
   justify-content: center;
-  flex: 1;
-  min-height: 140px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .signal-orb {
-  width: 110px;
-  height: 110px;
+  width: clamp(48px, 6vw, 90px);
+  height: clamp(48px, 6vw, 90px);
   border-radius: 999px;
   background: var(--deep-blue);
   opacity: 0.22;
@@ -229,7 +236,12 @@ button:active {
     box-shadow 140ms ease,
     background 140ms ease;
   box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.08);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+
 
 .signal-orb {
   position: relative;
@@ -240,7 +252,7 @@ button:active {
 
 .orb-symbol {
   font-family: Consolas, Monaco, monospace;
-  font-size: 72px;
+  font-size: clamp(42px, 4.5vw, 72px);
   font-weight: 900;
   line-height: 1;
   color: var(--jet-black);
@@ -291,8 +303,10 @@ button:active {
 .field-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  margin: 8px 0 12px;
+  gap: clamp(6px, 0.6vw, 10px);
+  margin: 4px 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .field-grid > .field-label {
@@ -300,20 +314,24 @@ button:active {
 }
 
 .field-grid .mono {
-  min-height: 76px;
-  padding: 10px 12px;
+  height: clamp(38px, 5vh, 64px);
+  min-height: 0;
+  padding: 4px 8px;
   border: 2px solid var(--border);
-  border-radius: 12px;
+  border-radius: 10px;
   background: #ffffff;
 
   display: flex;
   align-items: center;
   justify-content: center;
 
-  font-size: 42px;
   font-weight: 900;
   line-height: 1;
   text-align: center;
+
+  white-space: nowrap;
+  overflow: hidden;
+  word-break: normal;
 }
 
 .field-grid .mono::before {
@@ -323,8 +341,8 @@ button:active {
 
 .buffer {
   color: var(--orange);
-  letter-spacing: 8px;
-} 
+  letter-spacing: 0.12em;
+}
 
 .field-label {
   color: var(--muted);
@@ -338,41 +356,42 @@ button:active {
 
 
 
-.buffer {
-  min-height: 48px;
-  font-size: 42px;
-  font-weight: 900;
-  color: var(--orange);
-  text-align: center;
-  letter-spacing: 6px;
-}
 
 .target-row {
-  margin-top: 10px;
-  padding-top: 10px;
+  margin-top: 4px;
+  padding-top: 4px;
   border-top: 1px solid var(--border);
+
+  min-height: 0;
+  overflow: hidden;
+
+  display: grid;
+  grid-template-rows: auto auto auto;
 }
 
 .comparison {
-  margin-top: 12px;
+  margin-top: 4px;
   font-family: Consolas, Monaco, monospace;
 
   display: flex;
   justify-content: center;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 
   text-align: center;
-  line-height: 1.6;
+  line-height: 1;
 
   background: var(--panel-soft);
-  border-radius: 12px;
+  border-radius: 10px;
 
-  padding: 14px;
+  padding: 4px 6px;
   width: 100%;
+  height: clamp(28px, 4vh, 44px);
 
-  font-size: 28px;
   font-weight: 700;
+
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .comparison .done {
@@ -400,8 +419,9 @@ button:active {
 .error-text {
   color: var(--bad);
 
-  margin-top: 14px;
-  min-height: 64px;
+  margin-top: 4px;
+  height: clamp(24px, 3.5vh, 38px);
+  max-height: clamp(24px, 3.5vh, 38px);
 
   display: flex;
   align-items: center;
@@ -410,23 +430,16 @@ button:active {
   text-align: center;
 
   font-weight: 900;
-  line-height: 1.1;
+  line-height: 1;
 
-  padding: 10px 14px;
+  padding: 2px 5px;
 
-  overflow-wrap: break-word;
-}
+  white-space: nowrap;
+  overflow: hidden;
+  word-break: normal;
 
-.error-large {
-  font-size: 28px;
-}
-
-.error-medium {
-  font-size: 22px;
-}
-
-.error-small {
-  font-size: 16px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .error-text:not(:empty) {
@@ -436,18 +449,6 @@ button:active {
 
 .footer-note {
   display: none;
-}
-
-@media (max-width: 1500px) {
-  .teams {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 1180px) {
-  .teams {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
 }
 
 .space-done,
@@ -504,6 +505,102 @@ button:active {
   border-color: var(--bad) !important;
   background: rgba(215, 38, 30, 0.08) !important;
 
-  font-size: 54px !important;
   font-weight: 900;
+}
+
+.decoded,
+.buffer {
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.success-wrap {
+  flex: 1;
+  min-height: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.success-check {
+  width: min(72%, 260px);
+  aspect-ratio: 1;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 999px;
+  background: rgba(63, 163, 77, 0.14);
+  color: var(--complete);
+  border: 8px solid var(--complete);
+
+  font-size: clamp(120px, 16vw, 240px);
+  font-weight: 900;
+  line-height: 1;
+
+  animation: successGlow 3000ms ease-in-out infinite;
+  animation-delay: var(--sync-delay, 0ms);
+}
+
+.ghost-ellipsis {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: var(--muted);
+
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.ghost-ellipsis span {
+  display: none;
+}
+
+.ghost-ellipsis::before {
+  content: "▌";
+
+  font-family: Consolas, Monaco, monospace;
+  font-weight: 400;
+  font-size: 0.72em;
+  line-height: 1;
+
+  transform: scaleY(0.72);
+
+  opacity: 0.22;
+
+  animation: ghostCaretBlink 1100ms steps(1, end) infinite;
+  animation-delay: var(--sync-delay, 0ms);
+}
+
+@keyframes ghostCaretBlink {
+  0%,
+  48% {
+    opacity: 0.04;
+  }
+
+  50%,
+  100% {
+    opacity: 0.28;
+  }
+}
+
+@keyframes successGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(63, 163, 77, 0.26);
+  }
+
+  50% {
+    box-shadow: 0 0 0 18px rgba(63, 163, 77, 0.08);
+  }
 }
