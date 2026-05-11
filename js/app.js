@@ -6,12 +6,12 @@
 const APP_CONFIG = {
   targetPhrase: "HELLO WORLD",
   timing: {
-    minPressDurationMs: 30,  // debounce
-    dotMaxMs: 240,           // <= this is a dot
-    dashMaxMs: 600,          // > dotMaxMs and <= dashMaxMs is a dash
-    letterGapMs: 600,        // silence >= this finalizes a current Morse letter
-    wordGapMs: 1200,          // silence >= this finalizes a space
-    errorFlashMs: 800
+    minPressDurationMs: 30,
+    dotMaxMs: 240,
+    dashMaxMs: 900,
+    letterGapMs: 700,
+    wordGapMs: 1400,
+    errorFlashMs: 2500
   },
   teams: [
     { id: "A", key: "a", label: "Team A", active: true },
@@ -86,12 +86,14 @@ function createInitialTeamState(teamConfig) {
 
     currentSymbolBuffer: "",
     decodedText: "",
+    lastDecodedDisplay: "",
     currentTargetIndex: 0,
 
     status: "idle", // idle | active | error | complete
     errorMessage: "",
 
     lastInterpretedSymbol: "",
+    livePressSymbol: "",
     pendingGapHandled: false
   };
 }
@@ -110,7 +112,7 @@ const teamMapByKey = new Map(
 const teamsContainer = document.getElementById("teamsContainer");
 const targetPhraseDisplay = document.getElementById("targetPhraseDisplay");
 const timingSummary = document.getElementById("timingSummary");
-const globalResetBtn = document.getElementById("globalResetBtn");
+// const globalResetBtn = document.getElementById("globalResetBtn");
 
 /********************************************************************
  * RENDERING
@@ -123,15 +125,15 @@ function renderApp() {
 
   teamsContainer.innerHTML = teams.map(renderTeamCard).join("");
 
-  teams.forEach(team => {
-    const btn = document.getElementById(`reset-${team.id}`);
+  /* teams.forEach(team => {
+     const btn = document.getElementById(`reset-${team.id}`);
     if (btn) {
       btn.addEventListener("click", () => {
         resetTeam(team);
       });
     }
-  });
-}
+  }); */ 
+} 
 
 function renderTeamCard(team) {
   const cardClasses = [
@@ -143,44 +145,64 @@ function renderTeamCard(team) {
 
   const statusClass = `status-${team.status}`;
   const orbClass = team.isPressed ? "signal-orb pressed" : "signal-orb";
+  const orbSymbol =
+    team.livePressSymbol ||
+    (
+      team.lastInterpretedSymbol === "." ||
+      team.lastInterpretedSymbol === "-"
+    ? team.lastInterpretedSymbol
+    : "");
   const comparisonHtml = buildComparisonHtml(team);
+
+  const decodedClass =
+  team.lastDecodedDisplay === "⊗"
+    ? "mono decoded decoded-error"
+    : "mono decoded";
+
+  let errorSizeClass = "";
+
+  if (team.errorMessage.length > 36) {
+    errorSizeClass = "error-small";
+  } else if (team.errorMessage.length > 24) {
+    errorSizeClass = "error-medium";
+  } else {
+    errorSizeClass = "error-large";
+  }
 
   return `
     <div class="${cardClasses}">
       <div class="team-header">
         <div>
           <div class="team-title">
-            ${escapeHtml(team.label)} <span class="kbd">${escapeHtml(team.key.toUpperCase())}</span>
+            ${escapeHtml(team.label)} 
           </div>
-        </div>
-        <div class="topbar-right">
-          <span class="status-pill ${statusClass}">${escapeHtml(team.status)}</span>
-          <button id="reset-${team.id}">Reset</button>
         </div>
       </div>
 
       <div class="signal-wrap">
-        <div class="${orbClass}" aria-hidden="true"></div>
+        <div class="${orbClass}" aria-hidden="true">
+          <span class="orb-symbol">${escapeHtml(orbSymbol)}</span>
+        </div>
       </div>
 
       <div class="field-grid">
-        <div class="field-label">Buffer</div>
-        <div class="mono buffer">${escapeHtml(team.currentSymbolBuffer || "—")}</div>
+        <div class="readout-box">
+          <div class="readout-label">Buffer</div>
+          <div class="mono buffer">${escapeHtml(team.currentSymbolBuffer || "—")}</div>
+        </div>
 
-        <div class="field-label">Decoded</div>
-        <div class="mono">${escapeHtml(team.decodedText || "—")}</div>
-
-        <div class="field-label">Last</div>
-        <div class="mono">${escapeHtml(team.lastInterpretedSymbol || "—")}</div>
-
-        <div class="field-label">Progress</div>
-        <div>${team.currentTargetIndex} / ${APP_CONFIG.targetPhrase.length}</div>
+        <div class="readout-box">
+          <div class="readout-label">Last decoded</div>
+          <div class="${decodedClass}">
+            ${escapeHtml(team.lastDecodedDisplay || "—")}
+          </div>
+        </div>
       </div>
 
       <div class="target-row">
         <div class="field-label">Target progress</div>
         <div class="comparison">${comparisonHtml}</div>
-        <div class="error-text">${escapeHtml(team.errorMessage)}</div>
+        <div class="error-text ${errorSizeClass}">${escapeHtml(team.errorMessage)}</div>
       </div>
     </div>
   `;
@@ -199,7 +221,7 @@ function buildComparisonHtml(team) {
     // Already completed
     if (i < logicalIndex) {
       if (char === " ") {
-        html += `<span class="done space-done">·</span>`;
+        html += `<span class="done">&nbsp;</span>`;
       } else {
         html += `<span class="done">${escapeHtml(char)}</span>`;
       }
@@ -209,7 +231,7 @@ function buildComparisonHtml(team) {
     // Current actual logical cursor
     if (i === logicalIndex) {
       if (char === " ") {
-        html += `<span class="next space-pending">·</span>`;
+        html += `<span class="next">&nbsp;</span>`;
       } else {
         html += `<span class="next">${escapeHtml(char)}</span>`;
       }
@@ -218,7 +240,7 @@ function buildComparisonHtml(team) {
 
     // Remaining characters
     if (char === " ") {
-      html += `<span class="remaining space-remaining">·</span>`;
+      html += `<span class="remaining">&nbsp;</span>`;
     } else {
       html += `<span class="remaining">${escapeHtml(char)}</span>`;
     }
@@ -245,6 +267,7 @@ function resetTeam(team) {
   team.lastReleaseTime = null;
   team.currentSymbolBuffer = "";
   team.decodedText = "";
+  team.lastDecodedDisplay = "";
   team.currentTargetIndex = 0;
   team.status = "idle";
   team.errorMessage = "";
@@ -310,6 +333,7 @@ function finalizeLetter(team) {
   const decodedLetter = MORSE_MAP[morse];
 
   if (!decodedLetter) {
+    team.lastDecodedDisplay = "⊗";
     triggerTeamError(team, `Invalid Morse sequence: ${morse}`);
     return;
   }
@@ -317,6 +341,7 @@ function finalizeLetter(team) {
   const expectedChar = APP_CONFIG.targetPhrase[team.currentTargetIndex];
 
   if (decodedLetter !== expectedChar) {
+    team.lastDecodedDisplay = decodedLetter;
     triggerTeamError(
       team,
       `Expected "${expectedChar}" but received "${decodedLetter}"`
@@ -325,6 +350,7 @@ function finalizeLetter(team) {
   }
 
   team.decodedText += decodedLetter;
+  team.lastDecodedDisplay = decodedLetter;
   team.currentTargetIndex += 1;
   team.currentSymbolBuffer = "";
   team.lastInterpretedSymbol = decodedLetter;
@@ -356,12 +382,13 @@ function finalizeSpace(team) {
   if (expectedChar !== " ") {
     triggerTeamError(
       team,
-      `Expected "${expectedChar}" but received [space]`
+      `Expected "${expectedChar}" but received " "`
     );
     return;
   }
 
   team.decodedText += " ";
+  team.lastDecodedDisplay = "␣";
   team.currentTargetIndex += 1;
   team.lastInterpretedSymbol = "[space]";
   team.pendingGapHandled = true;
@@ -457,6 +484,7 @@ function handleKeyDown(event) {
 
   team.isPressed = true;
   team.pressStartTime = performance.now();
+  team.livePressSymbol = ".";
   team.errorMessage = "";
 
   if (team.status !== "error" && team.status !== "complete") {
@@ -485,6 +513,7 @@ function handleKeyUp(event) {
   team.pressStartTime = null;
   team.lastReleaseTime = now;
 
+  team.livePressSymbol = "";
   handlePressEnd(team, pressDurationMs);
   renderApp();
 }
@@ -495,10 +524,26 @@ function handleKeyUp(event) {
  * A light polling loop watches for letter gaps and word gaps across all
  * teams in parallel.
  ********************************************************************/
+function updateLivePressSymbol(team, now) {
+  if (!team.isPressed || team.pressStartTime === null) {
+    return;
+  }
+
+  const heldMs = now - team.pressStartTime;
+
+  if (heldMs > APP_CONFIG.timing.dotMaxMs) {
+    team.livePressSymbol = "-";
+  } else {
+    team.livePressSymbol = ".";
+  }
+}
+
+
 function tick() {
   const now = performance.now();
 
   teams.forEach(team => {
+    updateLivePressSymbol(team, now);
     processTeamGap(team, now);
   });
 
@@ -510,7 +555,7 @@ function tick() {
  * INIT
  ********************************************************************/
 function init() {
-  globalResetBtn.addEventListener("click", resetAllTeams);
+  // globalResetBtn.addEventListener("click", resetAllTeams);
   window.addEventListener("keydown", handleKeyDown);
   window.addEventListener("keyup", handleKeyUp);
 
