@@ -36,10 +36,31 @@ body {
 }
 
 body {
-  min-height: 100vh;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+#appScaler {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
+#appStage {
+  width: 1440px;
+  height: 810px;
+
+  transform-origin: top left;
+  position: absolute;
+
+
   padding: 14px;
   display: flex;
   flex-direction: column;
+
+  background: var(--bg);
 }
 
 h1,

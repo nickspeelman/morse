@@ -4,7 +4,7 @@
  * come from an admin panel or backend settings.
  ********************************************************************/
 const APP_CONFIG = {
-  targetPhrase: "HELLO",
+  targetPhrase: "HELLO WORLD",
   timing: {
     minPressDurationMs: 30,
     dotMaxMs: 240,
@@ -121,12 +121,45 @@ const teamMapByKey = new Map(
 const teamsContainer = document.getElementById("teamsContainer");
 const targetPhraseDisplay = document.getElementById("targetPhraseDisplay");
 const timingSummary = document.getElementById("timingSummary");
+const appStage = document.getElementById("appStage");
 // const globalResetBtn = document.getElementById("globalResetBtn");
 
 /********************************************************************
  * RENDERING
  ********************************************************************/
-function renderApp() {
+
+function resizeAppStage() {
+  const designWidth = 1440;
+  const designHeight = 810;
+
+  const scale = Math.min(
+    window.innerWidth / designWidth,
+    window.innerHeight / designHeight
+  );
+
+  const scaledWidth = designWidth * scale;
+  const scaledHeight = designHeight * scale;
+
+  const left = (window.innerWidth - scaledWidth) / 2;
+  const top = (window.innerHeight - scaledHeight) / 2;
+
+  appStage.style.transform = `scale(${scale})`;
+  appStage.style.left = `${left}px`;
+  appStage.style.top = `${top}px`;
+}
+
+
+function renderApp() {function resizeAppStage() {
+  const designWidth = 1440;
+  const designHeight = 810;
+
+  const scale = Math.min(
+    window.innerWidth / designWidth,
+    window.innerHeight / designHeight
+  );
+
+  appStage.style.transform = `scale(${scale})`;
+}
   targetPhraseDisplay.textContent = APP_CONFIG.targetPhrase;
   timingSummary.textContent =
     `dot≤${APP_CONFIG.timing.dotMaxMs}ms | dash≤${APP_CONFIG.timing.dashMaxMs}ms | ` +
@@ -671,7 +704,9 @@ function init() {
   // globalResetBtn.addEventListener("click", resetAllTeams);
   window.addEventListener("keydown", handleKeyDown);
   window.addEventListener("keyup", handleKeyUp);
+  window.addEventListener("resize", resizeAppStage);
 
+  resizeAppStage();
   renderApp();
   window.requestAnimationFrame(tick);
 }
