@@ -4,7 +4,7 @@
  * come from an admin panel or backend settings.
  ********************************************************************/
 const APP_CONFIG = {
-  targetPhrase: "HELLO WORLD",
+  targetPhrase: "YO BANANA BOY",
   timing: {
     minPressDurationMs: 30,
     dotMaxMs: 240,
