@@ -3,8 +3,10 @@
  * Hardcoded for now, but intentionally isolated so later these can
  * come from an admin panel or backend settings.
  ********************************************************************/
-const APP_CONFIG = {
-  targetPhrase: "YO BANANA BOY",
+const BACKEND_URL = "https://script.google.com/macros/s/AKfycbxY8uJQ5r1TDt7nMpqDUGOL-LtXyUo4g3bCPbXaa4otbknZdXcAuHuxfZMRnjtay9Ms/exec";
+
+let APP_CONFIG = {
+  targetPhrase: "HELLO",
   timing: {
     minPressDurationMs: 30,
     dotMaxMs: 240,
@@ -28,6 +30,12 @@ const APP_CONFIG = {
 };
 
 const APP_START_TIME = performance.now();
+
+const backendSync = {
+  initialized: false,
+  lastGlobalResetCounter: null,
+  lastTeamResetCounters: {}
+};
 
 function getSyncedAnimationStyle(durationMs) {
   const elapsed = performance.now() - APP_START_TIME;
@@ -149,7 +157,8 @@ function resizeAppStage() {
 }
 
 
-function renderApp() {function resizeAppStage() {
+function renderApp() {
+  {
   const designWidth = 1440;
   const designHeight = 810;
 
@@ -218,21 +227,21 @@ function renderTeamCard(team) {
     : `
       <div class="signal-wrap">
         <div class="${orbClass}" aria-hidden="true">
-          <span class="orb-symbol">${escapeHtml(orbSymbol)}</span>
+          <span class="orb-symbol">${orbSymbol ? displayMorseSymbols(orbSymbol) : ""}</span>
         </div>
       </div>
 
       <div class="field-grid">
         <div class="readout-box">
           <div class="readout-label">Buffer</div>
-          <div class="mono buffer fit-one-line ${team.currentSymbolBuffer ? "" : "ghost-ellipsis"}" data-fit-min="10" data-fit-max="42" ${team.currentSymbolBuffer ? "" : getSyncedAnimationStyle(1100)}>
-            ${team.currentSymbolBuffer ? escapeHtml(team.currentSymbolBuffer) : "<span></span><span></span><span></span>"}
+          <div class="mono buffer fit-one-line ${team.currentSymbolBuffer ? "" : "ghost-ellipsis"}" data-fit-min="10" data-fit-max="34" ${team.currentSymbolBuffer ? "" : getSyncedAnimationStyle(1100)}>
+            ${team.currentSymbolBuffer ? displayMorseSymbols(team.currentSymbolBuffer) : "<span></span><span></span><span></span>"}
           </div>
         </div>
 
         <div class="readout-box">
           <div class="readout-label">Last decoded</div>
-          <div class="${decodedClass} fit-one-line ${team.lastDecodedDisplay ? "" : "ghost-ellipsis"}" data-fit-min="8" data-fit-max="36" ${team.lastDecodedDisplay ? "" : getSyncedAnimationStyle(1100)}>
+          <div class="${decodedClass} fit-one-line ${team.lastDecodedDisplay ? "" : "ghost-ellipsis"}" data-fit-min="8" data-fit-max="32" ${team.lastDecodedDisplay ? "" : getSyncedAnimationStyle(1100)}>
             ${team.lastDecodedDisplay ? escapeHtml(team.lastDecodedDisplay) : "<span></span><span></span><span></span>"}
           </div>
         </div>
@@ -240,8 +249,8 @@ function renderTeamCard(team) {
 
       <div class="target-row">
         <div class="field-label">Target progress</div>
-        <div class="comparison fit-one-line" data-fit-min="10" data-fit-max="28">${comparisonHtml}</div>
-        <div class="error-text fit-one-line" data-fit-min="8" data-fit-max="22">${escapeHtml(team.errorMessage)}</div>
+        <div class="comparison fit-one-line" data-fit-min="10" data-fit-max="22">${comparisonHtml}</div>
+        <div class="error-text fit-one-line" data-fit-min="8" data-fit-max="18">${escapeHtml(team.errorMessage)}</div>
       </div>
     `;
 
@@ -310,6 +319,23 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function displayMorseSymbols(value) {
+  return String(value)
+    .split("")
+    .map(char => {
+      if (char === ".") {
+        return '<span class="morse-dot">•</span>';
+      }
+
+      if (char === "-") {
+        return '<span class="morse-dash">—</span>';
+      }
+
+      return escapeHtml(char);
+    })
+    .join("");
+}
+
 function fitOneLineText(el) {
   const minSize = Number(el.dataset.fitMin || 8);
   const maxSize = Number(el.dataset.fitMax || 32);
@@ -357,6 +383,138 @@ function resetTeam(team) {
 
 function resetAllTeams() {
   teams.forEach(resetTeam);
+}
+
+async function fetchBackendState() {
+  if (!BACKEND_URL || BACKEND_URL.includes("PASTE_YOUR_WEB_APP_URL_HERE")) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${BACKEND_URL}?action=getState`);
+    const data = await response.json();
+
+    if (!data.ok || !data.state) {
+      console.warn("Backend state error:", data.error || data);
+      return;
+    }
+
+    applyBackendState(data.state);
+  } catch (err) {
+    console.warn("Could not fetch backend state:", err);
+  }
+}
+
+function applyBackendState(serverState) {
+  if (!backendSync.initialized) {
+    backendSync.lastGlobalResetCounter = serverState.globalResetCounter;
+    backendSync.lastTeamResetCounters = {
+      ...serverState.teamResetCounters
+    };
+    backendSync.initialized = true;
+    return;
+  }
+
+  if (serverState.globalResetCounter !== backendSync.lastGlobalResetCounter) {
+    backendSync.lastGlobalResetCounter = serverState.globalResetCounter;
+    backendSync.lastTeamResetCounters = {
+      ...serverState.teamResetCounters
+    };
+
+    fetchBackendSettings().then(() => {
+      resetAllTeams();
+      renderApp();
+    });
+
+    return;
+  }
+
+  teams.forEach(team => {
+    const serverCounter = serverState.teamResetCounters?.[team.id] || 0;
+    const localCounter = backendSync.lastTeamResetCounters[team.id] || 0;
+
+    if (serverCounter !== localCounter) {
+      backendSync.lastTeamResetCounters[team.id] = serverCounter;
+      resetTeam(team);
+    }
+  });
+}
+
+function startBackendPolling() {
+  fetchBackendState();
+  window.setInterval(fetchBackendState, 1000);
+}
+
+async function fetchBackendSettings() {
+  if (!BACKEND_URL || BACKEND_URL.includes("PASTE_YOUR_WEB_APP_URL_HERE")) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${BACKEND_URL}?action=getSettings`);
+    const data = await response.json();
+
+    if (!data.ok || !data.settings) {
+      console.warn("Backend settings error:", data.error || data);
+      return;
+    }
+
+    applyBackendSettings(data.settings);
+  } catch (err) {
+    console.warn("Could not fetch backend settings:", err);
+  }
+}
+
+function applyBackendSettings(serverSettings) {
+  if (serverSettings.targetPhrase) {
+    APP_CONFIG.targetPhrase = String(serverSettings.targetPhrase).toUpperCase();
+  }
+
+  if (serverSettings.timing) {
+    APP_CONFIG.timing = {
+      ...APP_CONFIG.timing,
+      ...serverSettings.timing
+    };
+  }
+
+  if (Array.isArray(serverSettings.teams)) {
+    const serverTeamsById = new Map(
+      serverSettings.teams.map(team => [team.id, team])
+    );
+
+    APP_CONFIG.teams = APP_CONFIG.teams.map(localTeam => {
+      const serverTeam = serverTeamsById.get(localTeam.id);
+
+      if (!serverTeam) {
+        return localTeam;
+      }
+
+      const displayLabel =
+        serverTeam.displayName ||
+        serverTeam.label ||
+        localTeam.label;
+
+      return {
+        ...localTeam,
+        label: displayLabel
+      };
+    });
+
+    teams.forEach(team => {
+      const serverTeam = serverTeamsById.get(team.id);
+
+      if (!serverTeam) {
+        return;
+      }
+
+      const displayLabel =
+        serverTeam.displayName ||
+        serverTeam.label ||
+        team.label;
+
+      team.label = displayLabel;
+    });
+  }
 }
 
 /********************************************************************
@@ -700,14 +858,16 @@ function tick() {
 /********************************************************************
  * INIT
  ********************************************************************/
-function init() {
+async function init() {
   // globalResetBtn.addEventListener("click", resetAllTeams);
   window.addEventListener("keydown", handleKeyDown);
   window.addEventListener("keyup", handleKeyUp);
   window.addEventListener("resize", resizeAppStage);
 
   resizeAppStage();
+  await fetchBackendSettings();
   renderApp();
+  startBackendPolling();
   window.requestAnimationFrame(tick);
 }
 

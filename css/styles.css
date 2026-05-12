@@ -127,9 +127,9 @@ button:active {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(5, minmax(160px, 1fr));
-  grid-template-rows: repeat(2, minmax(0, 1fr));
-  gap: clamp(8px, 0.8vw, 12px);
+  grid-template-columns: repeat(5, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 12px;
   align-items: stretch;
 }
 
@@ -137,22 +137,20 @@ button:active {
   background: var(--panel);
   border: 2px solid var(--deep-blue);
   border-radius: 14px;
-  padding: clamp(8px, 0.8vw, 14px);
+  padding: 10px;
   min-height: 0;
   height: 100%;
 
   display: grid;
-  grid-template-rows:
-    auto
-    minmax(44px, 1fr)
-    auto
-    auto;
+  grid-template-rows: 30px 76px 70px 86px;
+  gap: 5px;
 
   overflow: hidden;
 
   box-shadow: 0 5px 16px rgba(31, 78, 140, 0.08);
   transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
 }
+
 
 .team-card:hover {
   transform: translateY(-1px);
@@ -174,16 +172,21 @@ button:active {
   box-shadow: 0 0 0 3px rgba(63, 163, 77, 0.16);
 }
 
+.team-card.complete {
+  grid-template-rows: 1fr;
+}
+
 .team-header {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 8px;
-  margin-bottom: 10px;
+  justify-content: center;
+  align-items: center;
+  min-height: 0;
+  overflow: hidden;
+  margin: 0;
 }
 
 .team-title {
-  font-size: clamp(22px, 2vw, 32px);
+  font-size: 28px;
   font-weight: 900;
   color: var(--deep-blue);
   line-height: 1;
@@ -245,8 +248,8 @@ button:active {
 }
 
 .signal-orb {
-  width: clamp(48px, 6vw, 90px);
-  height: clamp(48px, 6vw, 90px);
+  width: 58px;
+  height: 58px;
   border-radius: 999px;
   background: var(--deep-blue);
   opacity: 0.22;
@@ -264,68 +267,60 @@ button:active {
 }
 
 
-.signal-orb {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .orb-symbol {
   font-family: Consolas, Monaco, monospace;
-  font-size: clamp(42px, 4.5vw, 72px);
+  font-size: 38px;
   font-weight: 900;
   line-height: 1;
   color: var(--jet-black);
   opacity: 0.9;
-  transform: translateY(-4px);
+  transform: translateY(-2px);
+  min-width: 38px;
+  text-align: center;
 }
 
 .orb-symbol:empty {
   display: none;
 }
 
-.orb-symbol {
-  min-width: 70px;
-  text-align: center;
-}
 
 .signal-orb.pressed {
   opacity: 1;
-  transform: scale(1);
   background: var(--bright-yellow);
   box-shadow:
-    0 0 0 8px rgba(242, 194, 48, 0.22),
-    0 0 24px rgba(242, 194, 48, 0.75);
+    0 0 0 5px rgba(242, 194, 48, 0.18),
+    0 0 14px rgba(242, 194, 48, 0.55);
   animation: signalPulse 700ms ease-in-out infinite;
 }
 
 @keyframes signalPulse {
   0% {
-    transform: scale(1);
+    opacity: 1;
     box-shadow:
-      0 0 0 0 rgba(242, 194, 48, 0.26),
-      0 0 18px rgba(242, 194, 48, 0.55);
+      0 0 0 0 rgba(242, 194, 48, 0.22),
+      0 0 10px rgba(242, 194, 48, 0.45);
   }
+
   50% {
-    transform: scale(1.08);
+    opacity: 0.9;
     box-shadow:
-      0 0 0 12px rgba(242, 194, 48, 0.10),
-      0 0 30px rgba(242, 194, 48, 0.82);
+      0 0 0 5px rgba(242, 194, 48, 0.10),
+      0 0 16px rgba(242, 194, 48, 0.65);
   }
+
   100% {
-    transform: scale(1);
+    opacity: 1;
     box-shadow:
       0 0 0 0 rgba(242, 194, 48, 0.18),
-      0 0 18px rgba(242, 194, 48, 0.55);
+      0 0 10px rgba(242, 194, 48, 0.45);
   }
 }
 
 .field-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: clamp(6px, 0.6vw, 10px);
-  margin: 4px 0;
+  gap: 8px;
+  margin: 0;
   min-height: 0;
   overflow: hidden;
 }
@@ -335,11 +330,11 @@ button:active {
 }
 
 .field-grid .mono {
-  height: clamp(38px, 5vh, 64px);
+  height: 42px;
   min-height: 0;
-  padding: 4px 8px;
+  padding: 3px 6px;
   border: 2px solid var(--border);
-  border-radius: 10px;
+  border-radius: 9px;
   background: #ffffff;
 
   display: flex;
@@ -362,7 +357,7 @@ button:active {
 
 .buffer {
   color: var(--orange);
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
 }
 
 .field-label {
@@ -379,19 +374,20 @@ button:active {
 
 
 .target-row {
-  margin-top: 4px;
-  padding-top: 4px;
+  margin-top: 0;
+  padding-top: 5px;
   border-top: 1px solid var(--border);
 
   min-height: 0;
   overflow: hidden;
 
   display: grid;
-  grid-template-rows: auto auto auto;
+  grid-template-rows: 15px 34px 28px;
+  gap: 3px;
 }
 
 .comparison {
-  margin-top: 4px;
+  margin-top: 0;
   font-family: Consolas, Monaco, monospace;
 
   display: flex;
@@ -403,11 +399,11 @@ button:active {
   line-height: 1;
 
   background: var(--panel-soft);
-  border-radius: 10px;
+  border-radius: 9px;
 
-  padding: 4px 6px;
+  padding: 3px 5px;
   width: 100%;
-  height: clamp(28px, 4vh, 44px);
+  height: 34px;
 
   font-weight: 700;
 
@@ -440,9 +436,9 @@ button:active {
 .error-text {
   color: var(--bad);
 
-  margin-top: 4px;
-  height: clamp(24px, 3.5vh, 38px);
-  max-height: clamp(24px, 3.5vh, 38px);
+  margin-top: 0;
+  height: 28px;
+  max-height: 28px;
 
   display: flex;
   align-items: center;
@@ -453,7 +449,7 @@ button:active {
   font-weight: 900;
   line-height: 1;
 
-  padding: 2px 5px;
+  padding: 2px 4px;
 
   white-space: nowrap;
   overflow: hidden;
@@ -509,11 +505,11 @@ button:active {
 .readout-label {
   color: var(--muted);
   font-weight: 800;
-  font-size: 14px;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-align: center;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .decoded {
@@ -543,6 +539,22 @@ button:active {
   line-height: 1;
 }
 
+.morse-dot,
+.morse-dash {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  font-weight: 900;
+  line-height: 1;
+
+  margin: 0 0.04em;
+}
+
+.morse-dash {
+  transform: scaleX(1.08);
+}
+
 .success-wrap {
   flex: 1;
   min-height: 0;
@@ -552,9 +564,13 @@ button:active {
   justify-content: center;
 }
 
+.success-wrap {
+  grid-row: 1 / -1;
+}
+
 .success-check {
-  width: min(72%, 260px);
-  aspect-ratio: 1;
+  width: 190px;
+  height: 190px;
 
   display: flex;
   align-items: center;
@@ -565,7 +581,7 @@ button:active {
   color: var(--complete);
   border: 8px solid var(--complete);
 
-  font-size: clamp(120px, 16vw, 240px);
+  font-size: 170px;
   font-weight: 900;
   line-height: 1;
 
