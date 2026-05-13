@@ -609,7 +609,7 @@ button:active {
 }
 
 .ghost-ellipsis::before {
-  content: "▌";
+  content: "…";
 
   font-family: Consolas, Monaco, monospace;
   font-weight: 400;
@@ -618,9 +618,9 @@ button:active {
 
   transform: scaleY(0.72);
 
-  opacity: 0.22;
+  opacity: 0.10;
 
-  animation: ghostCaretBlink 1100ms steps(1, end) infinite;
+  animation: ghostCaretBlink 2200ms steps(1, end) infinite;
   animation-delay: var(--sync-delay, 0ms);
 }
 
